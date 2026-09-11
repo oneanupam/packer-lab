@@ -1,0 +1,66 @@
+name: PR Checks
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - release/*
+env:
+  GITHUB_REPO: Pycore
+
+jobs:
+  env_setup:
+    name: Env Setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Environment Setup
+        id: env_setup
+        run: |
+          # Access GitHub actions expression
+          echo "Workflow Name: ${{ github.workflow }}"
+          echo "Current Job ID: ${{ github.job }}"
+          echo "Run Number: ${{ github.run_number }}"
+
+          echo "Source Branch: ${{ github.head_ref }}"
+          echo "Target Branch: ${{ github.base_ref }}"
+          echo "Commit SHA: ${{ github.sha }}"
+
+          # Access shell variable
+          echo "GitHub Repository: $GITHUB_REPO"
+
+          # Store output
+          echo "metadata=${BUSINESS_UNIT}-${{ github.job }}-${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "tag-value=${{ github.run_number }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+        env:
+          BUSINESS_UNIT: foundations
+
+      - name: Display Metadata
+        run: |
+          echo "Metadata: ${{ steps.env_setup.outputs.metadata }}"
+          echo "Tag Value: ${{ steps.env_setup.outputs.tag-value }}"
+
+    outputs:
+      tag: ${{ steps.env_setup.outputs.tag-value }}
+      metadata: ${{ steps.env_setup.outputs.metadata }}
+
+  trufflehog_scan:
+    name: TruffleHog Scan
+    needs: env_setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Display Metadata
+        run: |
+          echo "Tag Value: ${{ needs.env_setup.outputs.tag }}"
+          echo "Metadata: ${{ needs.env_setup.outputs.metadata }}"
+
+      - name: TruffleHog Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --results=verified,unknown
